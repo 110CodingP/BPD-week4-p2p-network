@@ -1,3 +1,5 @@
+npm install
+
 # provide execution permission.
 chmod +x ./bash/run-bash.sh
 chmod +x ./python/run-python.sh
