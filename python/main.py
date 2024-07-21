@@ -2,7 +2,10 @@ import requests
 import re
 
 import socket
-import time
+
+import struct
+import random
+import hashlib
 
 def main():
 
@@ -28,7 +31,21 @@ def main():
     except Exception:
         print("Exception occured")
     
-    print(peers)
+
+    # make connection
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    connected_peer = peers[0]
+
+    for peer in peers:
+        try: 
+          err = sock.connect(peer)
+          connected_peer = peer
+          break
+        except Exception:
+            pass
+    
+    print(peer)
 
 
 
