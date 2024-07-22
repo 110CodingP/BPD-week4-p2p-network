@@ -7,11 +7,15 @@ import struct
 import random
 import hashlib
 
+import time
+
 def main():
 
     # get external ip
     response = requests.get("http://checkip.dyndns.org").text
     ip = re.search("(?:[0-9]{1,3}\.){3}[0-9]{1,3}", response).group()
+
+    # print(response)
 
     # get peers to connect to
     dns_seeds = [
@@ -45,7 +49,58 @@ def main():
         except Exception:
             pass
     
-    print(peer)
+    # print(peer)
+
+    # do version-verack handshake
+      # version msg
+    version = struct.pack("i",70015)
+    services = struct.pack("Q",0)
+    timestamp = struct.pack("q",int(time.time()))
+    addr_recv_services = struct.pack("Q",1)
+    addr_recv_ip = struct.pack(">16s", bytes.fromhex("00000000000000000000ffff") + socket.inet_aton(peer[0]))
+    addr_recv_port = struct.pack("H",peer[1])
+    addr_trans_services = struct.pack("Q",0)
+    addr_trans_ip = struct.pack(">16s",bytes.fromhex("00000000000000000000ffff") + socket.inet_aton(ip))
+    addr_trans_port = struct.pack("H",8333)
+    nonce = struct.pack("Q",random.getrandbits(64))
+    user_agent_bytes = struct.pack("B",0)
+    start_ht = struct.pack("i",0)
+    relay = struct.pack("?",False)
+    payload = (
+        version +
+        services +
+        timestamp + 
+        addr_recv_services +
+        addr_recv_ip +
+        addr_recv_port +
+        addr_trans_services +
+        addr_trans_ip +
+        addr_trans_port +
+        nonce +
+        user_agent_bytes +
+        start_ht +
+        relay
+    )
+    start = bytes.fromhex("f9beb4d9")
+    command = struct.pack("12s",bytes("version","utf-8"))
+    payload_size = struct.pack("I",len(payload))
+    checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+
+    version_msg = start + command + payload_size + checksum + payload
+
+      # verack msg
+    command = struct.pack("12s",bytes("verack","utf-8"))
+    payload_size = bytes.fromhex("00000000")
+    checksum = bytes.fromhex("5df6e0e2")
+
+    verack_msg = start + command + payload_size + checksum
+
+    sock.send(version_msg)
+    time.sleep(1)
+    print(sock.recv(8192))
+    sock.send(verack_msg)
+    time.sleep(1)
+
 
 
 
@@ -57,5 +112,6 @@ if __name__ == "__main__":
    - making a connection: http://sebastianappelt.com/understanding-blockchain-peer-discovery-and-establishing-a-connection-with-python/
    - P2P reference: https://developer.bitcoin.org/reference/p2p_networking.html
    - networking basics: https://web.mit.edu/6.031/www/fa19/classes/23-sockets-networking/
-
+   - version-verack handshake: https://en.bitcoin.it/wiki/Version_Handshake
+   - addr_recv_ip : https://en.bitcoin.it/wiki/Protocol_documentation#Network_address and https://stackoverflow.com/questions/33244775/converting-ip-address-into-bytes-in-python
 """
