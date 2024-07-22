@@ -97,9 +97,34 @@ def main():
 
     sock.send(version_msg)
     time.sleep(1)
-    print(sock.recv(8192))
-    sock.send(verack_msg)
-    time.sleep(1)
+    recv_msg = sock.recv(8192)
+    print(recv_msg[4:16])
+    if (recv_msg[4:16]==struct.pack(">12s",bytes("version","utf-8"))):
+        sock.send(verack_msg)
+    print(sock.recv(8192)[4:16])
+
+
+    # getdata to get the block
+    count = bytes.fromhex("01")
+    req_type = bytes.fromhex("02000040")
+    block_hash = bytes.fromhex("0000000000000000000320283a032748cef8227873ff4872689bf23f1cda83a5")
+    payload = (
+        count +
+        req_type +
+        block_hash
+    )
+    
+    command = struct.pack("12s",bytes("getdata","utf-8"))
+    payload_size = struct.pack("I",len(payload))
+    checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[:4]
+
+    getdata_msg = start + command + payload_size + checksum + payload
+
+    sock.send(getdata_msg)
+
+    print(sock.recv(8192)[4:16])
+    
+
 
 
 
@@ -114,4 +139,8 @@ if __name__ == "__main__":
    - networking basics: https://web.mit.edu/6.031/www/fa19/classes/23-sockets-networking/
    - version-verack handshake: https://en.bitcoin.it/wiki/Version_Handshake
    - addr_recv_ip : https://en.bitcoin.it/wiki/Protocol_documentation#Network_address and https://stackoverflow.com/questions/33244775/converting-ip-address-into-bytes-in-python
+   - as always: https://learnmeabitcoin.com/technical/networking/
+   - get block at certain ht: https://bitcoin.stackexchange.com/questions/83990/getting-individual-block-by-height-from-bitcoin-p2p-network
+   - message types: https://en.bitcoin.it/wiki/Protocol_documentation#Message_types
+   - getting block hash of block 840000: https://mempool.space/block/0000000000000000000320283a032748cef8227873ff4872689bf23f1cda83a5
 """
