@@ -102,12 +102,13 @@ def main():
     # send verack
     while True:
         received_header = sock.recv(24)
-        print(received_header)
+        print(received_header[4:16].rstrip(b"\00"))
         if (not received_header):
             break
         else:
             if (received_header[4:16] == struct.pack("12s",bytes("version","utf-8"))):
                 sock.send(verack_msg)
+                sock.recv(int(received_header[16:20].hex(),base=16))
                 break
             else:
                 sock.recv(int(received_header[16:20].hex(),base=16))
@@ -116,7 +117,7 @@ def main():
     # getdata to get the block
     count = bytes.fromhex("01")
     req_type = bytes.fromhex("02000040")
-    block_hash = bytes.fromhex("0000000000000000000320283a032748cef8227873ff4872689bf23f1cda83a5")
+    block_hash = bytes.fromhex("000000000000000000032524b6f80a77d9b4fd6a9fffca423081034b8e9682a7")[::-1]
     payload = (
         count +
         req_type +
@@ -129,7 +130,25 @@ def main():
 
     getdata_msg = start + command + payload_size + checksum + payload
 
-    # sock.send(getdata_msg)
+    sock.send(getdata_msg)
+
+    # listen for block
+    block = ""
+    while True:
+        received_header = sock.recv(24)
+        print(received_header[4:16].rstrip(b"\00"))
+        if (not received_header):
+            break
+        else:
+            if (received_header[4:16] == struct.pack("12s",bytes("block","utf-8"))):
+                block = sock.recv(int(received_header[16:20].hex(),base=16))
+                block = block.hex()
+                break
+            else:
+                sock.recv(int(received_header[16:20].hex(),base=16))
+    
+    f = open("./out.txt","w")
+    f.write(f"{block}")
     
 
 
