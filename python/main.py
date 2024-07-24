@@ -198,7 +198,9 @@ def main():
     block_ht_len = int(block_ht_len.hex(),base=16)
     block_ht = bytes.fromhex(block[next_idx:next_idx+block_ht_len*2])[::-1].hex()
     next_idx += block_ht_len*2
-    miner_info = block[next_idx+4:next_idx+50]
+    next_idx, info_size = find_pushbytes(block,next_idx)
+    info_size = int(info_size.hex(),base=16)
+    miner_info = block[next_idx:next_idx+info_size*2]
     miner_info = bytes.fromhex(miner_info).decode()
     next_idx = script_start
     next_idx += script_sig_sz*2
