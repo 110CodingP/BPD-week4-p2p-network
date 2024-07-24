@@ -18,7 +18,7 @@ def main():
     print(ip)
 
     # print(response)
-
+    
     # get peers to connect to
     dns_seeds = [
         ("seed.bitcoin.sipa.be",8333),
@@ -117,7 +117,7 @@ def main():
     # getdata to get the block
     count = bytes.fromhex("01")
     req_type = bytes.fromhex("02000040")
-    block_hash = bytes.fromhex("000000000000000000032524b6f80a77d9b4fd6a9fffca423081034b8e9682a7")[::-1]
+    block_hash = bytes.fromhex("0000000000000000000320283a032748cef8227873ff4872689bf23f1cda83a5")[::-1]
     payload = (
         count +
         req_type +
@@ -147,9 +147,78 @@ def main():
             else:
                 sock.recv(int(received_header[16:20].hex(),base=16))
     
-    f = open("./out.txt","w")
-    f.write(f"{block}")
+    def hash256(data):
+        return hashlib.sha256(hashlib.sha256(data).digest()).digest()
     
+    header = block[:160]    
+    received_block_hash = hash256(bytes.fromhex(block[:160]))[::-1].hex()
+
+    def find_size(data,idx):
+        var_int_start = bytes.fromhex(data[idx:idx+2])
+        if (var_int_start<=bytes.fromhex("fc")):
+            return [idx+2,bytes.fromhex(data[idx:idx+2])]
+        elif (var_int_start==bytes.fromhex("fd")):
+            return [idx+6,bytes.fromhex(data[idx+2:idx+6])[::-1]]
+        elif (var_int_start == bytes.fromhex("fe")):
+            return [idx+10,bytes.fromhex(data[idx+2:idx+10])[::-1]]
+        else:
+            return [idx+18,bytes.fromhex(data[idx+2:idx+18])[::-1]]
+
+    def find_pushbytes(data,idx):
+        if (data[idx] == "4c"):
+            return [idx+4, bytes.fromhex(data[idx+2:idx+4])[::-1]]
+        elif (data[idx] == "4d"):
+            return [idx+6, bytes.fromhex(data[idx+2:idx+6])[::-1]]
+        else:
+            return [idx+2, bytes.fromhex(data[idx:idx+2])]
+
+    next_idx , tx_ct = find_size(block,160)
+    tx_ct = int(tx_ct.hex(),base=16)
+    # print(tx_ct)
+    # find the message and calc fee
+    fee = 0
+    version = block[next_idx:next_idx+8]
+    next_idx += 8
+    if (block[next_idx:next_idx+2]=="00"):
+        marker = "00"
+        flag = "01"
+        next_idx += 4
+    next_idx,input_ct = find_size(block,next_idx)
+    input_ct = int(input_ct.hex(),base=16)
+    assert(input_ct == 1)
+    next_idx += 72
+    # print(next_idx)
+    next_idx,script_sig_sz = find_size(block,next_idx)
+    script_start = next_idx
+    # print(next_idx)
+    script_sig_sz = int(script_sig_sz.hex(),base=16)
+    # script_sig = block[next_idx:next_idx + script_sig_sz*2]
+    # # find how to deserialize pushbytes
+    next_idx, block_ht_len = find_pushbytes(block,next_idx)
+    block_ht_len = int(block_ht_len.hex(),base=16)
+    block_ht = bytes.fromhex(block[next_idx:next_idx+block_ht_len*2])[::-1].hex()
+    next_idx += block_ht_len*2
+    miner_info = block[next_idx+4:next_idx+50]
+    miner_info = bytes.fromhex(miner_info).decode()
+    next_idx = script_start
+    next_idx += script_sig_sz*2
+    # seq
+    # print(block[next_idx:next_idx+8])
+    next_idx+=8
+    next_idx, output_ct = find_size(block,next_idx)
+    output_ct = int(output_ct.hex(),base=16)
+    for ct in range(output_ct):
+        fee += int(bytes.fromhex(block[next_idx:next_idx+16])[::-1].hex(),base=16)
+        next_idx  += 16
+        next_idx, spk_size = find_size(block,next_idx)
+        spk_size = int(spk_size.hex(),base=16)
+        next_idx += spk_size*2
+    fee -= int(3.125*(10**8))
+    
+    f = open("./out.txt","w")
+    f.write(f"{header}\n{received_block_hash}\n{fee}\n{miner_info}")
+    f.close()
+
 
 
 
@@ -171,4 +240,5 @@ if __name__ == "__main__":
    - getting block hash of block 840000: https://mempool.space/block/0000000000000000000320283a032748cef8227873ff4872689bf23f1cda83a5
    - using a loop to receive messages: https://learnmeabitcoin.com/technical/networking/#keeping-connected
    - https://stackoverflow.com/questions/38883476/how-to-remove-those-x00-x00
+   - convert hex to ascii - https://stackoverflow.com/questions/9641440/convert-from-ascii-string-encoded-in-hex-to-plain-ascii
 """
