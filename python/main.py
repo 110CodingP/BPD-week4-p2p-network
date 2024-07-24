@@ -218,6 +218,7 @@ def main():
     fee -= int(3.125*(10**8))
     
     f = open("./out.txt","w")
+    miner_info = miner_info.strip('/').strip('\\')
     f.write(f"{header}\n{received_block_hash}\n{fee}\n{miner_info}")
     f.close()
 
